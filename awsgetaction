@@ -1,0 +1,29 @@
+#!/bin/bash
+#
+# script creation - 03/26/2021-13:46 
+# used to parce the aws policies file located here - https://awspolicygen.s3.amazonaws.com/js/policies.js
+# creates a dmenu for all the services
+# once picked, gets the actions for that service
+# I created a mapper in vim for insert and normal modes to be able to easily paste in action once selected
+
+create_dmenu() {
+  sort | dmenu -i -l 30
+}
+
+function dmenu_services() {
+  sed -r 's/"([^"]+)":\{"StringPrefix":"([^"]+)"/\nsn=\2|\1\n/g' "$AWS_POLICIES_FILE" |\
+  sed -rn 's/sn=(.*)/\1/p' |\
+  create_dmenu
+}
+
+service=$(dmenu_services)
+
+long_name=$(cut -d "|" -f2 <<< $service)
+short_name=$(cut -d "|" -f1 <<< $service)
+
+
+[[ -n "$service" ]] &&
+  sed -r "s/.*\"$long_name\":\{\"StringPrefix\":\"$short_name\",\"Actions\":\[([^]]+)\].*/\1/" "$AWS_POLICIES_FILE" |\
+  sed 's/,/\n/g' |\
+  sed "s/^\"/\"$short_name:/" |\
+  create_dmenu | tr -d "\n"
